@@ -15,7 +15,7 @@ except:
 connection = psycopg2.connect(DATABASE_URL)
 cursor = connection.cursor()
 
-st.header('Tony Bi Be De Va Chim Be')
+st.header('Tony Bi Be De Va Chim Be va Be Hung')
 tab1, tab2, tab3 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem"])
     
 with tab1:
