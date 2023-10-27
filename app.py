@@ -16,7 +16,7 @@ connection = psycopg2.connect(DATABASE_URL)
 cursor = connection.cursor()
 
 tab1, tab2, tab3 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem"])
-    
+
 with tab1:
     with st.form("Add_task_form", clear_on_submit=True):
         st.title("Přidat task")
@@ -25,7 +25,7 @@ with tab1:
         if st.form_submit_button("Uložit do databáze"):
             if task_name.strip() == "":
                 warning_mess = st.warning("Název tasku je povinný. Prosím, doplňte ho.")
-                time.sleep(3)
+                time.sleep(2)
                 warning_mess.empty()
             else:
                 # Zkontrolujte, zda úkol již existuje v databázi
@@ -35,7 +35,7 @@ with tab1:
 
                 if task_exists > 0:
                     error_mess = st.error(f"Task '{task_name}' již existuje v databázi.")
-                    time.sleep(3)
+                    time.sleep(2)
                     error_mess.empty()
                 else:
                     # Pokud úkol neexistuje, vložte ho do databáze
@@ -43,7 +43,7 @@ with tab1:
                     cursor.execute(sql_query, (task_name,))
                     connection.commit()
                     success_mess = st.success(f"Task '{task_name}' byl úspěšně uložen do databáze.")
-                    time.sleep(3)
+                    time.sleep(2)
                     success_mess.empty()
 
     with st.form("Delete_task_from", clear_on_submit=True):
@@ -55,7 +55,7 @@ with tab1:
         tasks_data = cursor.fetchall()
 
         # Vytvoření DataFrame z dat
-        column_names = ["Task","Tracking_time_tasks"]
+        column_names = ["ID", "Task", "Tracking_time_tasks","Start_time_of_tracking", "Stop_time_of_tracking"]
         tasks_df = pd.DataFrame(tasks_data, columns=column_names)
         selected_task = st.selectbox("Vyberte task", tasks_df["Task"])
 
@@ -71,18 +71,20 @@ with tab1:
                 st.experimental_rerun()
             else:
                 warning_mess = st.warning("Není žádný task k smazání.")
-                time.sleep(3)
+                time.sleep(2)
                 warning_mess.empty()
-        
+
         if st.form_submit_button("Zobrazit tabulku"):
             tasks_df.drop(columns=['Tracking_time_tasks'], inplace=True)
+            tasks_df.drop(columns=['Start_time_of_tracking'], inplace=True)
+            tasks_df.drop(columns=['Stop_time_of_tracking'], inplace=True)
             st.dataframe(tasks_df, hide_index=True, use_container_width=True)
 
 with tab2:
     select_querys = "SELECT * FROM public.tasks;"
     cursor.execute(select_querys)
     tasks_data_2 = cursor.fetchall()
-    column_names_2 = ["Task","Tracking_time_tasks"]
+    column_names_2 = ["ID", "Task", "Tracking_time_tasks","Start_time_of_tracking", "Stop_time_of_tracking"]
     tasks_df_1 = pd.DataFrame(tasks_data_2, columns=column_names_2)
     tasks_df_2 = tasks_df_1[tasks_df_1["Tracking_time_tasks"].isna()]
 
@@ -93,7 +95,7 @@ with tab2:
     if st.button("Reset"):
         st.session_state.start_time = None
         st.session_state.elapsed_time = timedelta()
-        time.sleep(3)
+        time.sleep(0.5)
         st.experimental_rerun()
 
     if 'start_time' not in st.session_state:
@@ -103,7 +105,17 @@ with tab2:
         st.session_state.elapsed_time = timedelta()
 
     if start_button:
-        st.session_state.start_time = datetime.now()
+        if task_name.strip() == "":
+            warning_mess = st.warning("Neexistuje žádný task.")
+            time.sleep(0.5)
+            warning_mess.empty()
+        else:
+            st.session_state.start_time = datetime.now()
+            current_time = datetime.now()
+            formatted_start_time = current_time.strftime("%d-%m-%Y %H:%M:%S")  # Formát "den-měsíc-rok hodiny:minuty"
+
+            # Převod textového řetězce na datetime objekt
+            st.session_state.date_obj = datetime.strptime(formatted_start_time, "%d-%m-%Y %H:%M:%S")
 
     if stop_button:
         if st.session_state.start_time:
@@ -146,6 +158,14 @@ with tab2:
 
     if selected_task:
         if st.button("Uložit čas do databáze"):
+            current_stop_time = datetime.now()
+            # Odečíst 2 sekundy od aktuálního času
+            adjusted_stop_time = current_stop_time - timedelta(seconds=2)
+            formatted_stop_time = adjusted_stop_time.strftime("%d-%m-%Y %H:%M:%S")  # Formát "den-měsíc-rok hodiny:minuty:sekundy"
+
+            # Převod textového řetězce na datetime objekt
+            st.session_state.date_stop = datetime.strptime(formatted_stop_time, "%d-%m-%Y %H:%M:%S")
+
             # Smazání starých dat spojených s vybraným úkolem
             delete_query = "DELETE FROM public.tasks WHERE \"Tasks\" = %s;"
             cursor.execute(delete_query, (selected_task,))
@@ -156,8 +176,8 @@ with tab2:
             formatted_time = f"{measured_time.seconds // 3600:02d}:{(measured_time.seconds // 60) % 60:02d}:{measured_time.seconds % 60:02d}"
 
             # Přidejte kód pro uložení vybraného úkolu a změřeného času do databáze
-            insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\") VALUES (%s, %s);"
-            cursor.execute(insert_query, (selected_task, formatted_time))
+            insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\") VALUES (%s, %s, %s, %s);"
+            cursor.execute(insert_query, (selected_task, formatted_time,st.session_state.date_obj, st.session_state.date_stop))
             connection.commit()
             success_mess = st.success(f"Čas byl uložen k úkolu '{selected_task}' s hodnotou {formatted_time}.")
 
@@ -165,8 +185,7 @@ with tab2:
             st.session_state.start_time = None
             st.session_state.elapsed_time = timedelta()
 
-            # Obnovte aplikaci po 3 sekundách
-            time.sleep(3)
+            time.sleep(0.1)
             st.experimental_rerun()
 
 with tab3:
@@ -174,11 +193,11 @@ with tab3:
     select_query = "SELECT * FROM public.tasks;"
     cursor.execute(select_query)
     tasks_data = cursor.fetchall()
-    column_names = ["Task", "Tracking_time_tasks"]
+    column_names = ["ID", "Task", "Tracking_time_tasks","Start_time_of_tracking", "Stop_time_of_tracking"]
     tasks_df = pd.DataFrame(tasks_data, columns=column_names)
 
     tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
     st.dataframe(tasks_df, use_container_width=True, hide_index=True)
-    
+
 cursor.close()
 connection.close()
