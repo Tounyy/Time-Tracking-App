@@ -59,6 +59,7 @@ jedi==0.18.2
 Jinja2==3.1.2
 jsonpointer==2.3
 jsonschema==4.17.3
+jsonschema-specifications==2023.7.1
 jupyter==1.0.0
 jupyter-console==6.6.1
 jupyter-events==0.6.3
@@ -75,6 +76,7 @@ matplotlib==3.7.1
 matplotlib-inline==0.1.6
 mdurl==0.1.2
 mistune==2.0.5
+my-module==1.6.2
 mypy==1.1.1
 mypy-extensions==1.0.0
 nbclassic==0.5.2
@@ -129,10 +131,12 @@ PyYAML==6.0.1
 pyzmq==25.0.0
 qtconsole==5.4.0
 QtPy==2.3.0
+referencing==0.30.2
 requests==2.31.0
 rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rich==13.3.3
+rpds-py==0.10.6
 script-runner==0.2.3
 semver==2.13.0
 Send2Trash==1.8.0
