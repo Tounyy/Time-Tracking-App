@@ -115,10 +115,10 @@ if authentication_status:
                         cursor.execute(sql_query, (task_name,))
                         connection.commit()
                         success_mess = st.success(f"Task '{task_name}' byl úspěšně uložen do databáze.")
-                        time.sleep(2)
+                        time.sleep(1)
                         success_mess.empty()
 
-        with st.form("Delete_task_from", clear_on_submit=True):
+        with st.form("Delete_task_form", clear_on_submit=True):
             st.title("Smazat task a zobrazit tabulku")
 
             # Získání všech úkolů z databáze
@@ -151,6 +151,17 @@ if authentication_status:
                 tasks_df.drop(columns=['Start_time_of_tracking'], inplace=True)
                 tasks_df.drop(columns=['Stop_time_of_tracking'], inplace=True)
                 st.dataframe(tasks_df, hide_index=True, use_container_width=True)
+
+            if st.form_submit_button("Smazat celou tabulku"):
+                # Dotaz pro smazání celé tabulky
+                delete_all_query = "DELETE FROM public.tasks;"
+                cursor.execute(delete_all_query)
+                # Commit změn do databáze
+                connection.commit()
+                success_mess = st.success("Celá tabulka uživatelů byla smazána.")
+                time.sleep(2)
+                success_mess.empty()
+                st.experimental_rerun()
 
     with tab2:
         select_querys = "SELECT * FROM public.tasks;"
@@ -273,13 +284,62 @@ if authentication_status:
     
     if username == 'admin':
         with tab4:
-            with st.form("admin", clear_on_submit=True):
-                st.title("Hashed passwords")
-                password = st.text_input("Password")
-                hashed_passwords = stauth.Hasher([password]).generate()
-                if st.form_submit_button("Register"):
-                    st.write(hashed_passwords)
+            with st.form("table_user_form", clear_on_submit=True):
+                st.title("Zobrazit Tabulku")
+                select_query = "SELECT * FROM public.\"user\";"
+                cursor.execute(select_query)
+                user_data = cursor.fetchall()
 
+                column_names = ["ID", "Username", "Name", "Password", "Email","Registration Date"]
+                user_df = pd.DataFrame(user_data, columns=column_names)
+                if st.form_submit_button("Zobratit"):
+                    if len(user_data) > 0:
+                        st.dataframe(user_df, hide_index=True, use_container_width=True)
+                    else:
+                        warning = st.warning("No user data available.")
+                        time.sleep(2)
+                        warning.empty()
+                
+            with st.form("Delete_user_form", clear_on_submit=True):
+                st.title("Smazat user")
+
+                select_query = "SELECT * FROM public.\"user\";"
+                cursor.execute(select_query)
+                user_data = cursor.fetchall()
+
+                # Vytvoření DataFrame z dat
+                column_names = ["ID", "Username", "Name", "Password", "Email", "Registration Date"]
+                user_df = pd.DataFrame(user_data, columns=column_names)
+                selected_user = st.selectbox("Vyberte user", user_df["Username"])
+
+                if st.form_submit_button("Smazat"):
+                    if selected_user:
+                        delete_query = "DELETE FROM public.\"user\" WHERE \"Username\" = %s;"
+                        cursor.execute(delete_query, (selected_user,))
+                        # Commit změn do databáze
+                        connection.commit()
+                        success_mess = st.success(f"user '{selected_user}' je smazáno z databáze.")
+                        time.sleep(2)
+                        success_mess.empty()
+                        st.experimental_rerun()
+                    else:
+                        warning_mess = st.warning("Není žádný user k smazání.")
+                        time.sleep(2)
+                        warning_mess.empty()
+
+                if st.form_submit_button("Zobrazit tabulku"):
+                    st.dataframe(user_df, hide_index=True, use_container_width=True)
+
+                if st.form_submit_button("Smazat celou tabulku"):
+                    # Dotaz pro smazání celé tabulky
+                    delete_all_query = "DELETE FROM public.\"user\";"
+                    cursor.execute(delete_all_query)
+                    # Commit změn do databáze
+                    connection.commit()
+                    success_mess = st.success("Celá tabulka uživatelů byla smazána.")
+                    time.sleep(2)
+                    success_mess.empty()
+                    st.experimental_rerun()
 
     authenticator.logout('Logout', 'main', key='unique_key')
 
