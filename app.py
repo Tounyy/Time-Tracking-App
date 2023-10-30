@@ -57,8 +57,7 @@ with tab2:
 
             if submit_button:
                 # Kontrola, zda již existuje e-mail nebo uživatelské jméno v databázi
-                cursor.execute(
-                    "SELECT COUNT(*) FROM public.\"user\" WHERE \"Username\" = %s OR \"Email\" = %s;", (username, email))
+                cursor.execute("SELECT COUNT(*) FROM public.\"user\" WHERE \"Username\" = %s OR \"Email\" = %s;", (username, email))
                 existing_user_count = cursor.fetchone()[0]
 
                 if not username or not name or not password or not email:
@@ -85,7 +84,10 @@ with tab2:
                     success.empty()
 
 if authentication_status:
-    tab1, tab2, tab3 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem"])
+    if username == 'admin':
+        tab1, tab2, tab3, tab4 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem", "admin"])
+    else:
+        tab1, tab2, tab3 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem"])
 
     with tab1:
         with st.form("Add_task_form", clear_on_submit=True):
@@ -268,6 +270,16 @@ if authentication_status:
 
         tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
         st.dataframe(tasks_df, use_container_width=True, hide_index=True)
+    
+    if username == 'admin':
+        with tab4:
+            with st.form("admin", clear_on_submit=True):
+                st.title("Hashed passwords")
+                password = st.text_input("Password")
+                hashed_passwords = stauth.Hasher([password]).generate()
+                if st.form_submit_button("Register"):
+                    st.write(hashed_passwords)
+
 
     authenticator.logout('Logout', 'main', key='unique_key')
 
