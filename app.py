@@ -33,27 +33,56 @@ tab1, tab2 = st.tabs(["Login", "Register",])
 
 with tab1:
     name, authentication_status, username = authenticator.login('Login', 'main')
+    
+    if authentication_status == False:
+        warning_message = st.warning('Uživatelské jméno/heslo je nesprávné nebo je prázdné')
+        time.sleep(1.2)
+        warning_message.empty()
 
+    elif authentication_status == None:
+        warning_message = st.warning('Zadejte prosím své uživatelské jméno a heslo.')
+        time.sleep(1.2)
+        warning_message.empty()
+    
 with tab2:
     if not authentication_status:
         with st.form("Registration_form", clear_on_submit=True):
             st.header("Register")
-            username = st.text_input("Username")
-            name = st.text_input("Name")
-            password = st.text_input("Password", type="password")
+            username = st.text_input("Username*")
+            name = st.text_input("Name*")
+            email = st.text_input("Email*")
+            password = st.text_input("Password*", type="password")
             hashed_passwords = stauth.Hasher([password]).generate()
-            email = st.text_input("Email")
             submit_button = st.form_submit_button("Register")
 
             if submit_button:
-                registration_date = datetime.now()
-                formatted_registration_date = registration_date.strftime("%Y-%m-%d %H:%M:%S")
-                insert_user_query = "INSERT INTO public.\"user\" (\"Username\", \"Name\", \"Password\", \"Email\", \"Registration_Date\") VALUES (%s, %s, %s, %s, %s);"
-                cursor.execute(insert_user_query, (username, name, hashed_passwords, email, formatted_registration_date))
-                connection.commit()
-                suc = st.success('User successfully registered')
-                time.sleep(1.2)
-                suc.empty()
+                # Kontrola, zda již existuje e-mail nebo uživatelské jméno v databázi
+                cursor.execute(
+                    "SELECT COUNT(*) FROM public.\"user\" WHERE \"Username\" = %s OR \"Email\" = %s;", (username, email))
+                existing_user_count = cursor.fetchone()[0]
+
+                if not username or not name or not password or not email:
+                    warning = st.warning('Všechna pole jsou povinná. Prosím, vyplňte všechny údaje.')
+                    time.sleep(1.2)
+                    warning.empty()
+                elif "@" not in email:
+                    warning = st.warning("Email musí obsahovat znak '@'. Prosím, zadejte platný e-mail.")
+                    time.sleep(1.2)
+                    warning.empty()
+                elif existing_user_count > 0:
+                    warning = st.warning('Tento uživatel již existuje v databázi.')
+                    time.sleep(1.2)
+                    warning.empty()
+                else:
+                    registration_date = datetime.now()
+                    formatted_registration_date = registration_date.strftime("%Y-%m-%d %H:%M:%S")
+                    hashed_passwords = stauth.Hasher([password]).generate()
+                    insert_user_query = "INSERT INTO public.\"user\" (\"Username\", \"Name\", \"Password\", \"Email\", \"Registration_Date\") VALUES (%s, %s, %s, %s, %s);"
+                    cursor.execute(insert_user_query, (username, name, hashed_passwords, email, formatted_registration_date))
+                    connection.commit()
+                    success = st.success('User successfully registered')
+                    time.sleep(1.2)
+                    success.empty()
 
 if authentication_status:
     tab1, tab2, tab3 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem"])
@@ -125,7 +154,7 @@ if authentication_status:
         select_querys = "SELECT * FROM public.tasks;"
         cursor.execute(select_querys)
         tasks_data_2 = cursor.fetchall()
-        column_names_2 = ["ID", "Task", "Tracking_time_tasks","Start_time_of_tracking", "Stop_time_of_tracking"]
+        column_names_2 = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking"]
         tasks_df_1 = pd.DataFrame(tasks_data_2, columns=column_names_2)
         tasks_df_2 = tasks_df_1[tasks_df_1["Tracking_time_tasks"].isna()]
 
@@ -234,28 +263,13 @@ if authentication_status:
         select_query = "SELECT * FROM public.tasks;"
         cursor.execute(select_query)
         tasks_data = cursor.fetchall()
-        column_names = ["ID", "Task", "Tracking_time_tasks","Start_time_of_tracking", "Stop_time_of_tracking"]
+        column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking"]
         tasks_df = pd.DataFrame(tasks_data, columns=column_names)
 
         tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
         st.dataframe(tasks_df, use_container_width=True, hide_index=True)
 
     authenticator.logout('Logout', 'main', key='unique_key')
-
-elif authentication_status == False:
-    if not username:
-        error_message = st.error('Uživatelské jméno nesmí být prázdné.')
-        time.sleep(1.2)
-        error_message.empty()
-    else:
-        error_message = st.error('Uživatelské jméno/heslo je nesprávné')
-        time.sleep(1.2)
-        error_message.empty()
-
-elif authentication_status == None:
-    warning_message = st.warning('Zadejte prosím své uživatelské jméno a heslo.')
-    time.sleep(1.2)
-    warning_message.empty()
 
 cursor.close()
 connection.close()
