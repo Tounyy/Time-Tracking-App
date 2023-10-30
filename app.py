@@ -29,7 +29,31 @@ authenticator = stauth.Authenticate(
     config['preauthorized']
 )
 
-name, authentication_status, username = authenticator.login('Login', 'main')
+tab1, tab2 = st.tabs(["Login", "Register",])
+
+with tab1:
+    name, authentication_status, username = authenticator.login('Login', 'main')
+
+with tab2:
+    if not authentication_status:
+        with st.form("Registration_form", clear_on_submit=True):
+            st.header("Register")
+            username = st.text_input("Username")
+            name = st.text_input("Name")
+            password = st.text_input("Password", type="password")
+            hashed_passwords = stauth.Hasher([password]).generate()
+            email = st.text_input("Email")
+            submit_button = st.form_submit_button("Register")
+
+            if submit_button:
+                registration_date = datetime.now()
+                formatted_registration_date = registration_date.strftime("%Y-%m-%d %H:%M:%S")
+                insert_user_query = "INSERT INTO public.\"user\" (\"Username\", \"Name\", \"Password\", \"Email\", \"Registration_Date\") VALUES (%s, %s, %s, %s, %s);"
+                cursor.execute(insert_user_query, (username, name, hashed_passwords, email, formatted_registration_date))
+                connection.commit()
+                suc = st.success('User successfully registered')
+                time.sleep(1.2)
+                suc.empty()
 
 if authentication_status:
     tab1, tab2, tab3 = st.tabs(["Přidat task", "Sledování časových úkolů", "Zobrazit tabulku s časem"])
@@ -72,7 +96,7 @@ if authentication_status:
             tasks_data = cursor.fetchall()
 
             # Vytvoření DataFrame z dat
-            column_names = ["ID", "Task", "Tracking_time_tasks","Start_time_of_tracking", "Stop_time_of_tracking"]
+            column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking"]
             tasks_df = pd.DataFrame(tasks_data, columns=column_names)
             selected_task = st.selectbox("Vyberte task", tasks_df["Task"])
 
@@ -194,7 +218,7 @@ if authentication_status:
 
                 # Přidejte kód pro uložení vybraného úkolu a změřeného času do databáze
                 insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\") VALUES (%s, %s, %s, %s);"
-                cursor.execute(insert_query, (selected_task, formatted_time,st.session_state.date_obj, st.session_state.date_stop))
+                cursor.execute(insert_query, (selected_task, formatted_time, st.session_state.date_obj, st.session_state.date_stop))
                 connection.commit()
                 success_mess = st.success(f"Čas byl uložen k úkolu '{selected_task}' s hodnotou {formatted_time}.")
 
