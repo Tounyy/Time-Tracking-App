@@ -101,18 +101,18 @@ if authentication_status:
                     warning_mess.empty()
                 else:
                     # Zkontrolujte, zda úkol již existuje v databázi
-                    check_query = "SELECT COUNT(*) FROM public.tasks WHERE \"Tasks\" = %s;"
-                    cursor.execute(check_query, (task_name,))
+                    check_query = "SELECT COUNT(*) FROM public.tasks WHERE \"Tasks\" = %s AND \"User\" = %s;"
+                    cursor.execute(check_query, (task_name, username))
                     task_exists = cursor.fetchone()[0]
 
                     if task_exists > 0:
-                        error_mess = st.error(f"Task '{task_name}' již existuje v databázi.")
+                        error_mess = st.error(f"Task '{task_name}' již existuje pro aktuálního uživatele.")
                         time.sleep(2)
                         error_mess.empty()
                     else:
                         # Pokud úkol neexistuje, vložte ho do databáze
-                        sql_query = "INSERT INTO public.tasks (\"Tasks\") VALUES (%s);"
-                        cursor.execute(sql_query, (task_name,))
+                        sql_query = "INSERT INTO public.tasks (\"Tasks\", \"User\") VALUES (%s, %s);"
+                        cursor.execute(sql_query, (task_name, username))
                         connection.commit()
                         success_mess = st.success(f"Task '{task_name}' byl úspěšně uložen do databáze.")
                         time.sleep(1)
@@ -122,14 +122,15 @@ if authentication_status:
             st.title("Smazat task a zobrazit tabulku")
 
             # Získání všech úkolů z databáze
-            select_query = "SELECT * FROM public.tasks;"
-            cursor.execute(select_query)
+            select_query = "SELECT * FROM public.tasks"
+            cursor.execute(select_query,)
             tasks_data = cursor.fetchall()
 
             # Vytvoření DataFrame z dat
-            column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking"]
+            column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
             tasks_df = pd.DataFrame(tasks_data, columns=column_names)
-            selected_task = st.selectbox("Vyberte task", tasks_df["Task"])
+            admin_tasks_df = tasks_df[tasks_df['User'] == username]
+            selected_task = st.selectbox("Vyberte task", admin_tasks_df["Task"])
 
             if st.form_submit_button("Smazat"):
                 if selected_task:
@@ -138,7 +139,7 @@ if authentication_status:
                     # Commit změn do databáze
                     connection.commit()
                     success_mess = st.success(f"task ''{selected_task} je smazáno z databáze.")
-                    time.sleep(2)
+                    time.sleep(1)
                     success_mess.empty()
                     st.experimental_rerun()
                 else:
@@ -150,28 +151,38 @@ if authentication_status:
                 tasks_df.drop(columns=['Tracking_time_tasks'], inplace=True)
                 tasks_df.drop(columns=['Start_time_of_tracking'], inplace=True)
                 tasks_df.drop(columns=['Stop_time_of_tracking'], inplace=True)
-                st.dataframe(tasks_df, hide_index=True, use_container_width=True)
+                admin_tasks_df_1 = tasks_df[tasks_df['User'] == username]
+                admin_tasks_df_1.drop(columns=['User'], inplace=True)
+                st.dataframe(admin_tasks_df_1, hide_index=True,use_container_width=True)
 
             if st.form_submit_button("Smazat celou tabulku"):
                 # Dotaz pro smazání celé tabulky
-                delete_all_query = "DELETE FROM public.tasks;"
-                cursor.execute(delete_all_query)
+                delete_user_query = f"DELETE FROM public.tasks WHERE (\"User\") = '{username}';"
+                cursor.execute(delete_user_query)
                 # Commit změn do databáze
                 connection.commit()
-                success_mess = st.success("Celá tabulka uživatelů byla smazána.")
-                time.sleep(2)
-                success_mess.empty()
-                st.experimental_rerun()
+
+                if cursor.rowcount > 0:
+                    success_mess = st.success("Celá tabulka uživatelů byla smazána.")
+                    time.sleep(2)
+                    success_mess.empty()
+                    st.experimental_rerun()
+                else:
+                    warning_message = st.warning("Nebyla nalezena žádná tabulka uživatelů k smazání.")
+                    time.sleep(2)
+                    warning_message.empty()
+                    st.experimental_rerun()
 
     with tab2:
         select_querys = "SELECT * FROM public.tasks;"
         cursor.execute(select_querys)
         tasks_data_2 = cursor.fetchall()
-        column_names_2 = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking"]
+        column_names_2 = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
         tasks_df_1 = pd.DataFrame(tasks_data_2, columns=column_names_2)
         tasks_df_2 = tasks_df_1[tasks_df_1["Tracking_time_tasks"].isna()]
+        admin_tasks_df_1 = tasks_df_2[tasks_df['User'] == username]
 
-        selected_task = st.selectbox("Vyberte task", tasks_df_2["Task"])
+        selected_task = st.selectbox("Vyberte task", admin_tasks_df_1["Task"])
         start_button = st.button('Start')
         stop_button = st.button('Stop')
 
@@ -251,7 +262,7 @@ if authentication_status:
 
                 # Smazání starých dat spojených s vybraným úkolem
                 delete_query = "DELETE FROM public.tasks WHERE \"Tasks\" = %s;"
-                cursor.execute(delete_query, (selected_task,))
+                cursor.execute(delete_query, (task_name,))
                 connection.commit()
 
                 # Získejte změřený čas a převeďte ho na žádaný formát
@@ -259,8 +270,8 @@ if authentication_status:
                 formatted_time = f"{measured_time.seconds // 3600:02d}:{(measured_time.seconds // 60) % 60:02d}:{measured_time.seconds % 60:02d}"
 
                 # Přidejte kód pro uložení vybraného úkolu a změřeného času do databáze
-                insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\") VALUES (%s, %s, %s, %s);"
-                cursor.execute(insert_query, (selected_task, formatted_time, st.session_state.date_obj, st.session_state.date_stop))
+                insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\",\"User\") VALUES (%s, %s, %s, %s, %s);"
+                cursor.execute(insert_query, (selected_task, formatted_time, st.session_state.date_obj, st.session_state.date_stop, username))
                 connection.commit()
                 success_mess = st.success(f"Čas byl uložen k úkolu '{selected_task}' s hodnotou {formatted_time}.")
 
@@ -273,15 +284,17 @@ if authentication_status:
 
     with tab3:
         # Fetch data from the database
-        select_query = "SELECT * FROM public.tasks;"
-        cursor.execute(select_query)
+        select_query = "SELECT * FROM public.tasks"
+        cursor.execute(select_query,)
         tasks_data = cursor.fetchall()
-        column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking"]
-        tasks_df = pd.DataFrame(tasks_data, columns=column_names)
+        column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
 
+        tasks_df = pd.DataFrame(tasks_data, columns=column_names)
         tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
-        st.dataframe(tasks_df, use_container_width=True, hide_index=True)
-    
+
+        admin_tasks_df = tasks_df[tasks_df['User'] == username]
+        st.dataframe(admin_tasks_df, use_container_width=True, hide_index=True)
+
     if username == 'admin':
         with tab4:
             with st.form("table_user_form", clear_on_submit=True):
@@ -342,6 +355,7 @@ if authentication_status:
                     st.experimental_rerun()
 
     authenticator.logout('Logout', 'main', key='unique_key')
+    st.write(f"Username: {username}")
 
 cursor.close()
 connection.close()
