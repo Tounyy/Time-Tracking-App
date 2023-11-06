@@ -180,7 +180,7 @@ if authentication_status:
         column_names_2 = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
         tasks_df_1 = pd.DataFrame(tasks_data_2, columns=column_names_2)
         tasks_df_2 = tasks_df_1[tasks_df_1["Tracking_time_tasks"].isna()]
-        admin_tasks_df_1 = tasks_df_2[tasks_df['User'] == username]
+        admin_tasks_df_1 = tasks_df_2[tasks_df_2['User'] == username]
 
         selected_task = st.selectbox("Vyberte task", admin_tasks_df_1["Task"])
         start_button = st.button('Start')
@@ -191,6 +191,8 @@ if authentication_status:
             st.session_state.elapsed_time = timedelta()
             time.sleep(0.5)
             st.experimental_rerun()
+
+        task_name = selected_task
 
         if 'start_time' not in st.session_state:
             st.session_state.start_time = None
@@ -260,9 +262,9 @@ if authentication_status:
                 # Převod textového řetězce na datetime objekt
                 st.session_state.date_stop = datetime.strptime(formatted_stop_time, "%d-%m-%Y %H:%M:%S")
 
-                # Smazání starých dat spojených s vybraným úkolem
-                delete_query = "DELETE FROM public.tasks WHERE \"Tasks\" = %s;"
-                cursor.execute(delete_query, (task_name,))
+                # Zde je přidána podmínka pro uživatele ve vašem SQL dotazu
+                delete_query = "DELETE FROM public.tasks WHERE \"Tasks\" = %s AND \"User\" = %s;"
+                cursor.execute(delete_query, (selected_task, username))
                 connection.commit()
 
                 # Získejte změřený čas a převeďte ho na žádaný formát
@@ -270,7 +272,7 @@ if authentication_status:
                 formatted_time = f"{measured_time.seconds // 3600:02d}:{(measured_time.seconds // 60) % 60:02d}:{measured_time.seconds % 60:02d}"
 
                 # Přidejte kód pro uložení vybraného úkolu a změřeného času do databáze
-                insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\",\"User\") VALUES (%s, %s, %s, %s, %s);"
+                insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\", \"User\") VALUES (%s, %s, %s, %s, %s);"
                 cursor.execute(insert_query, (selected_task, formatted_time, st.session_state.date_obj, st.session_state.date_stop, username))
                 connection.commit()
                 success_mess = st.success(f"Čas byl uložen k úkolu '{selected_task}' s hodnotou {formatted_time}.")
