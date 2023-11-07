@@ -356,23 +356,52 @@ if selected_tab == "Register":
         email = st.text_input("Email*")
         password = st.text_input("Password*", type="password")
         hashed_passwords = stauth.Hasher([password]).generate()
-        submit_button = st.form_submit_button("Register")
+        submit_button = st.form_submit_button("Registrovat")
+
+        # Požadavky na sílu hesla
+        delka = len(password) >= 8
+        mala_pismena = any(char.islower() for char in password)
+        velka_pismena = any(char.isupper() for char in password)
+        cislo = any(char.isdigit() for char in password)
 
         if submit_button:
             # Kontrola, zda již existuje e-mail nebo uživatelské jméno v databázi
             cursor.execute("SELECT COUNT(*) FROM public.\"user\" WHERE \"Username\" = %s OR \"Email\" = %s;", (username, email))
             existing_user_count = cursor.fetchone()[0]
 
+            cursor.execute("SELECT COUNT(*) FROM public.\"user\" WHERE \"Email\" = %s;", (email,))
+            existing_email_count = cursor.fetchone()[0]
+
             if not username or not name or not password or not email:
                 warning = st.warning('Všechna pole jsou povinná. Prosím, vyplňte všechny údaje.')
+                time.sleep(1.2)
+                warning.empty()
+            elif existing_user_count > 0:
+                warning = st.warning('Tento uživatel již existuje.')
                 time.sleep(1.2)
                 warning.empty()
             elif "@" not in email:
                 warning = st.warning("Email musí obsahovat znak '@'. Prosím, zadejte platný e-mail.")
                 time.sleep(1.2)
                 warning.empty()
-            elif existing_user_count > 0:
-                warning = st.warning('Tento uživatel již existuje v databázi.')
+            elif existing_email_count > 0:
+                warning = st.warning('Tento e-mail již existuje.')
+                time.sleep(1.2)
+                warning.empty()
+            elif not delka:
+                warning = st.warning('Heslo musí obsahovat alespoň 8 znaků.')
+                time.sleep(1.2)
+                warning.empty()
+            elif not mala_pismena:
+                warning = st.warning('Heslo musí obsahovat alespoň jedno malé písmeno.')
+                time.sleep(1.2)
+                warning.empty()
+            elif not velka_pismena:
+                warning = st.warning('Heslo musí obsahovat alespoň jedno velké písmeno.')
+                time.sleep(1.2)
+                warning.empty()
+            elif not cislo:
+                warning = st.warning('Heslo musí obsahovat alespoň jedno číslo.')
                 time.sleep(1.2)
                 warning.empty()
             else:
@@ -382,6 +411,23 @@ if selected_tab == "Register":
                 insert_user_query = "INSERT INTO public.\"user\" (\"Username\", \"Name\", \"Password\", \"Email\", \"Registration_Date\") VALUES (%s, %s, %s, %s, %s);"
                 cursor.execute(insert_user_query, (username, name, hashed_passwords, email, formatted_registration_date))
                 connection.commit()
-                success = st.success('User successfully registered')
+                success = st.success('Registrace uživatele proběhla úspěšně')
                 time.sleep(1.2)
                 success.empty()
+
+                new_user_data = {
+                    'email': email,
+                    'name': name,
+                    'password': hashed_passwords,
+                }
+
+                # Načtení stávajícího YAML souboru
+                with open('password.yaml', 'r') as file:
+                    credentials = yaml.safe_load(file)
+
+                # Přidání nového uživatele
+                credentials['credentials']['usernames'][username] = new_user_data
+
+                # Uložení aktualizovaných údajů zpět do YAML souboru
+                with open('password.yaml', 'w') as file:
+                    yaml.dump(credentials, file)
