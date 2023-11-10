@@ -239,7 +239,16 @@ if selected_tab == "Login":
             tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
 
             admin_tasks_df = tasks_df[tasks_df['User'] == username]
-            st.dataframe(admin_tasks_df, use_container_width=True, hide_index=True)
+            df = st.dataframe(admin_tasks_df, use_container_width=True, hide_index=True)
+
+            csv = admin_tasks_df.to_csv(index=False)  # Convert DataFrame to CSV string
+
+            st.download_button(
+                label="Stáhnout data jako CSV",
+                data=csv.encode('utf-8'),
+                file_name='large_df.csv',
+                mime='text/csv',
+            )
 
         if username == 'admin':
             with tab4:
@@ -252,7 +261,7 @@ if selected_tab == "Login":
 
                     tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                     tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
-                    st.dataframe(tasks_df, use_container_width=True, hide_index=True)
+                    df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
 
                     if st.form_submit_button("Smazat celou tabulku všech uživatelů"):
                         delete_user_query = f"DELETE FROM public.tasks;"
@@ -292,6 +301,16 @@ if selected_tab == "Login":
                             time.sleep(2)
                             warning_message.empty()
                             st.experimental_rerun()
+
+                # Convert DataFrame to CSV string
+                csv = tasks_df.to_csv(index=False)
+
+                st.download_button(
+                    label="Stáhnout data jako CSV",
+                    data=csv.encode('utf-8'),
+                    file_name='df.csv',
+                    mime='text/csv',
+                )
 
                 with st.form("Delete_table_all_user_form", clear_on_submit=True):
                     st.title("Smazat ůkol všech uživatelů")
@@ -333,17 +352,14 @@ if selected_tab == "Login":
 
                     if st.form_submit_button("Smazat uživatel"):
                         if selected_user:
-                            # Smazání všech záznamů v tabulce tasks patřících vybranému uživateli
                             delete_tasks_query = f"DELETE FROM public.tasks WHERE \"User\" = '{selected_user}';"
                             cursor.execute(delete_tasks_query)
                             connection.commit()
 
-                            # Smazání uživatele z tabulky user
                             delete_user_query = "DELETE FROM public.\"user\" WHERE (\"Username\") = %s"
                             cursor.execute(delete_user_query, (selected_user,))
                             connection.commit()
 
-                            # Zobrazení úspěšné zprávy a obnovení stránky
                             success_mess = st.success(f"Uživatel '{selected_user}' byl úspěšně smazán z databáze.")
                             time.sleep(1)
                             success_mess.empty()
@@ -441,11 +457,9 @@ if selected_tab == "Register":
                     'password': password,
                 }
 
-                # Aktualizace souboru YAML
                 with open('password.yaml', 'r') as file:
                     credentials = yaml.safe_load(file)
 
-                # Upravte strukturu slovníku pro heslo
                 credentials['credentials']['usernames'][username] = {
                     'email': new_user_data['email'],
                     'name': new_user_data['name'],
