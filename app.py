@@ -207,7 +207,7 @@ if selected_tab == "Login":
                 if st.button("Uložit čas do databáze"):
                     current_stop_time = datetime.now()
                     adjusted_stop_time = current_stop_time - timedelta(seconds=2)
-                    formatted_stop_time = adjusted_stop_time.strftime("%d-%m-%Y %H:%M:%S") 
+                    formatted_stop_time = adjusted_stop_time.strftime("%d-%m-%Y %H:%M:%S")
 
                     st.session_state.date_stop = datetime.strptime(formatted_stop_time, "%d-%m-%Y %H:%M:%S")
 
@@ -333,19 +333,23 @@ if selected_tab == "Login":
 
                     if st.form_submit_button("Smazat uživatel"):
                         if selected_user:
-                            delete_user_query = f"DELETE FROM public.tasks WHERE \"User\" = '{selected_user}';"
-                            cursor.execute(delete_user_query)
+                            # Smazání všech záznamů v tabulce tasks patřících vybranému uživateli
+                            delete_tasks_query = f"DELETE FROM public.tasks WHERE \"User\" = '{selected_user}';"
+                            cursor.execute(delete_tasks_query)
                             connection.commit()
 
-                            delete_query = "DELETE FROM public.\"user\" WHERE (\"Username\") = %s"
-                            cursor.execute(delete_query, (selected_user,))
+                            # Smazání uživatele z tabulky user
+                            delete_user_query = "DELETE FROM public.\"user\" WHERE (\"Username\") = %s"
+                            cursor.execute(delete_user_query, (selected_user,))
                             connection.commit()
+
+                            # Zobrazení úspěšné zprávy a obnovení stránky
                             success_mess = st.success(f"Uživatel '{selected_user}' byl úspěšně smazán z databáze.")
-                            time.sleep(0.5)
+                            time.sleep(1)
                             success_mess.empty()
                             st.experimental_rerun()
                         else:
-                            warning_mess = st.warning("Není žádný uživatel k smazání.")
+                            warning_mess = st.warning("Není vybrán žádný uživatel k smazání.")
                             time.sleep(2)
                             warning_mess.empty()
 
@@ -421,7 +425,7 @@ if selected_tab == "Register":
                 cursor.execute(insert_user_query, (username, name, hashed_passwords, email, formatted_registration_date))
                 connection.commit()
                 success = st.success('Registrace uživatele proběhla úspěšně')
-                time.sleep(1.2)
+                time.sleep(0.5)
                 success.empty()
 
                 # Načtení údajů o nově registrovaném uživateli z databáze
