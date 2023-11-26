@@ -210,14 +210,12 @@ if selected_tab == "Login":
                     formatted_stop_time = adjusted_stop_time.strftime("%d-%m-%Y %H:%M:%S")
 
                     st.session_state.date_stop = datetime.strptime(formatted_stop_time, "%d-%m-%Y %H:%M:%S")
-
                     delete_query = "DELETE FROM public.tasks WHERE \"Tasks\" = %s AND \"User\" = %s;"
                     cursor.execute(delete_query, (selected_task, username))
                     connection.commit()
 
                     measured_time = st.session_state.elapsed_time
                     formatted_time = f"{measured_time.seconds // 3600:02d}:{(measured_time.seconds // 60) % 60:02d}:{measured_time.seconds % 60:02d}"
-
                     insert_query = "INSERT INTO public.tasks (\"Tasks\", \"Tracking_time_tasks\", \"Start_time_of_tracking\", \"Stop_time_of_tracking\", \"User\") VALUES (%s, %s, %s, %s, %s);"
                     cursor.execute(insert_query, (selected_task, formatted_time, st.session_state.date_obj, st.session_state.date_stop, username))
                     connection.commit()
@@ -240,8 +238,7 @@ if selected_tab == "Login":
 
             admin_tasks_df = tasks_df[tasks_df['User'] == username]
             df = st.dataframe(admin_tasks_df, use_container_width=True, hide_index=True)
-
-            csv = admin_tasks_df.to_csv(index=False)  # Convert DataFrame to CSV string
+            csv = admin_tasks_df.to_csv(index=False) 
 
             st.download_button(
                 label="Stáhnout data jako CSV",
@@ -302,7 +299,6 @@ if selected_tab == "Login":
                             warning_message.empty()
                             st.experimental_rerun()
 
-                # Convert DataFrame to CSV string
                 csv = tasks_df.to_csv(index=False)
 
                 st.download_button(
@@ -371,7 +367,15 @@ if selected_tab == "Login":
 
         authenticator.logout('Logout', 'main', key='unique_key')
         st.write(f"Username: {username}")
-
+        select_query = "SELECT * FROM public.\"user\""
+        cursor.execute(select_query)
+        user_data = cursor.fetchall()
+        column_names = ["ID", "Username", "Name", "Type_User", "Password", "Email", "Registration_Date"]
+        user_df = pd.DataFrame(user_data, columns=column_names)
+        columns_to_drop = ['ID', 'Username', 'Name', 'Password', 'Email', 'Registration_Date']
+        user_df.drop(columns=columns_to_drop, inplace=True)
+        st.write(f"Type User: {tasks_df}")
+    
     cursor.close()
     connection.close()
 
@@ -384,6 +388,7 @@ if selected_tab == "Register":
         password = st.text_input("Password*", type="password")
         hashed_passwords = stauth.Hasher([password]).generate()
         submit_button = st.form_submit_button("Registrovat")
+        user_type = st.radio("Select User Type", ["Customer", "Agency", "Worker"])
 
         delka = len(password) >= 8
         mala_pismena = any(char.islower() for char in password)
@@ -437,14 +442,13 @@ if selected_tab == "Register":
                 registration_date = datetime.now()
                 formatted_registration_date = registration_date.strftime("%Y-%m-%d %H:%M:%S")
                 hashed_passwords = stauth.Hasher([password]).generate()
-                insert_user_query = "INSERT INTO public.\"user\" (\"Username\", \"Name\", \"Password\", \"Email\", \"Registration_Date\") VALUES (%s, %s, %s, %s, %s);"
-                cursor.execute(insert_user_query, (username, name, hashed_passwords, email, formatted_registration_date))
+                insert_user_query = "INSERT INTO public.\"user\" (\"Username\", \"Name\", \"Type_User\", \"Password\", \"Email\", \"Registration_Date\") VALUES (%s, %s, %s, %s, %s, %s);"
+                cursor.execute(insert_user_query, (username, name, user_type, hashed_passwords, email, formatted_registration_date))
                 connection.commit()
                 success = st.success('Registrace uživatele proběhla úspěšně')
                 time.sleep(0.5)
                 success.empty()
 
-                # Načtení údajů o nově registrovaném uživateli z databáze
                 select_user_query = "SELECT * FROM public.\"user\" WHERE \"Username\" = %s;"
                 cursor.execute(select_user_query, (username,))
                 user_data = cursor.fetchone()
