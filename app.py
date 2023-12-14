@@ -217,7 +217,7 @@ if selected_tab == "Login":
                                 success_mess.empty()
 
                 with st.form("Confirm_form", clear_on_submit=True):
-                    st.title("Potvrďte, aby mohl worker pracovat")
+                    st.title("Confirmation, aby mohl worker pracovat")
 
                     select_query = "SELECT * FROM public.tasks"
                     cursor.execute(select_query,)
@@ -225,14 +225,19 @@ if selected_tab == "Login":
 
                     column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
                     tasks_df = pd.DataFrame(tasks_data, columns=column_names)
-                    selected_task = st.selectbox("Vyberte task", tasks_df["Task"])
+                    
+                    if user_type == 'Agency':
+                        available_tasks = tasks_df.loc[tasks_df["Agency_input_task"] != 'confirm', "Task"]
+                    elif user_type == 'Customer':
+                        available_tasks = tasks_df.loc[tasks_df["Customer_input_task"] != 'confirm', "Task"]
 
-                    if st.form_submit_button("Confirm"):
+                    selected_task = st.selectbox("Vyberte task", available_tasks)
+
+                    if st.form_submit_button("Confirmation"):
                         if user_type == 'Agency':
                             update_query = "UPDATE public.tasks SET \"Agency_input_task\" = 'confirm' WHERE \"Tasks\" = %s;"
                             cursor.execute(update_query, (selected_task,))
                             connection.commit()
-
                             success_mess = st.success(f"Potvrzení bylo odesláno pro úkol '{selected_task}'.")
                             time.sleep(2)
                             success_mess.empty()
@@ -240,10 +245,35 @@ if selected_tab == "Login":
                             update_query = "UPDATE public.tasks SET \"Customer_input_task\" = 'confirm' WHERE \"Tasks\" = %s;"
                             cursor.execute(update_query, (selected_task,))
                             connection.commit()
-
                             success_mess = st.success(f"Potvrzení bylo odesláno pro úkol '{selected_task}'.")
                             time.sleep(2)
                             success_mess.empty()
+                        st.experimental_rerun()
+                    
+                    if user_type == 'Agency':
+                        available_tasks = tasks_df.loc[(tasks_df["Agency_input_task"] == 'confirm') & (tasks_df["Customer_input_task"] == 'confirm'), "Task"]
+                    elif user_type == 'Customer':
+                        available_tasks = tasks_df.loc[(tasks_df["Agency_input_task"] == 'confirm') & (tasks_df["Customer_input_task"] == 'confirm'), "Task"]
+
+                    selected_task = st.selectbox("Vyberte task", available_tasks)
+
+                    if st.form_submit_button("Vrátit Confirmation"):
+                        if user_type == 'Agency':
+                            update_query = "UPDATE public.tasks SET \"Agency_input_task\" = NULL WHERE \"Tasks\" = %s;"
+                            cursor.execute(update_query, (selected_task,))
+                            connection.commit()
+                            success_mess = st.success(f"Potvrzení bylo vzato zpět pro úkol '{selected_task}'.")
+                            time.sleep(2)
+                            success_mess.empty()
+                        elif user_type == 'Customer':
+                            update_query = "UPDATE public.tasks SET \"Customer_input_task\" = NULL WHERE \"Tasks\" = %s;"
+                            cursor.execute(update_query, (selected_task,))
+                            connection.commit()
+                            success_mess = st.success(f"Potvrzení bylo vzato zpět pro úkol '{selected_task}'.")
+                            time.sleep(2)
+                            success_mess.empty()
+
+                        st.experimental_rerun()
 
                 with st.form("Delete_task_form", clear_on_submit=True):
                     st.title("Smazat task a zobrazit tabulku")
