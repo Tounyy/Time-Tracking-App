@@ -190,21 +190,60 @@ if selected_tab == "Login":
                             time.sleep(2)
                             warning_mess.empty()
                         else:
-                            check_query = "SELECT COUNT(*) FROM public.tasks WHERE \"Tasks\" = %s AND \"User\" = %s;"
-                            cursor.execute(check_query, (task_name, username))
-                            task_exists = cursor.fetchone()[0]
+                            # Kontrola, zda úkol existuje pro stejného uživatele s tímto typem nebo pro jiného uživatele s tímto typem
+                            check_user_type_query = "SELECT COUNT(*) FROM public.tasks WHERE \"Tasks\" = %s AND \"User_type_input_task\" = %s;"
+                            cursor.execute(check_user_type_query, (task_name, user_type))
+                            task_exists_for_current_user_type = cursor.fetchone()[0]
 
-                            if task_exists > 0:
+                            check_other_user_type_query = "SELECT COUNT(*) FROM public.tasks WHERE \"Tasks\" = %s AND \"User_type_input_task\" != %s;"
+                            cursor.execute(check_other_user_type_query, (task_name, user_type))
+                            task_exists_for_other_user_type = cursor.fetchone()[0]
+
+                            if task_exists_for_current_user_type > 0:
                                 error_mess = st.error(f"Task '{task_name}' již existuje pro aktuálního uživatele.")
                                 time.sleep(2)
                                 error_mess.empty()
+                            elif task_exists_for_other_user_type > 0:
+                                error_mess = st.error(f"Task '{task_name}' již existuje pro jiného uživatele s jiným typem.")
+                                time.sleep(2)
+                                error_mess.empty()
                             else:
-                                sql_query = "INSERT INTO public.tasks (\"Tasks\", \"User\") VALUES (%s, %s);"
-                                cursor.execute(sql_query, (task_name, username))
+                                # Vložení nového úkolu do databáze
+                                sql_query = "INSERT INTO public.tasks (\"Tasks\", \"MD\", \"Currency\", \"User\", \"User_type_input_task\") VALUES (%s, %s, %s, %s, %s);"
+                                cursor.execute(sql_query, (task_name, Money_MD, selected_currency, username, user_type))
                                 connection.commit()
                                 success_mess = st.success(f"Task '{task_name}' byl úspěšně uložen do databáze.")
                                 time.sleep(1)
                                 success_mess.empty()
+
+                with st.form("Confirm_form", clear_on_submit=True):
+                    st.title("Potvrďte, aby mohl worker pracovat")
+
+                    select_query = "SELECT * FROM public.tasks"
+                    cursor.execute(select_query,)
+                    tasks_data = cursor.fetchall()
+
+                    column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
+                    tasks_df = pd.DataFrame(tasks_data, columns=column_names)
+                    selected_task = st.selectbox("Vyberte task", tasks_df["Task"])
+
+                    if st.form_submit_button("Confirm"):
+                        if user_type == 'Agency':
+                            update_query = "UPDATE public.tasks SET \"Agency_input_task\" = 'confirm' WHERE \"Tasks\" = %s;"
+                            cursor.execute(update_query, (selected_task,))
+                            connection.commit()
+
+                            success_mess = st.success(f"Potvrzení bylo odesláno pro úkol '{selected_task}'.")
+                            time.sleep(2)
+                            success_mess.empty()
+                        elif user_type == 'Customer':
+                            update_query = "UPDATE public.tasks SET \"Customer_input_task\" = 'confirm' WHERE \"Tasks\" = %s;"
+                            cursor.execute(update_query, (selected_task,))
+                            connection.commit()
+
+                            success_mess = st.success(f"Potvrzení bylo odesláno pro úkol '{selected_task}'.")
+                            time.sleep(2)
+                            success_mess.empty()
 
                 with st.form("Delete_task_form", clear_on_submit=True):
                     st.title("Smazat task a zobrazit tabulku")
@@ -213,7 +252,7 @@ if selected_tab == "Login":
                     cursor.execute(select_query,)
                     tasks_data = cursor.fetchall()
 
-                    column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
+                    column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
                     tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                     admin_tasks_df = tasks_df[tasks_df['User'] == username]
                     selected_task = st.selectbox("Vyberte task", admin_tasks_df["Task"])
@@ -241,7 +280,7 @@ if selected_tab == "Login":
                         st.dataframe(admin_tasks_df_1, hide_index=True, use_container_width=True)
 
                     if st.form_submit_button("Smazat celou tabulku"):
-                        delete_user_query = f"DELETE FROM public.tasks WHERE (\"User\") = '{username}';"
+                        delete_user_query = f"DELETE FROM public.tasks WHERE (\"User_type_input_task\") = '{user_type}';"
                         cursor.execute(delete_user_query)
                         connection.commit()
 
@@ -260,7 +299,7 @@ if selected_tab == "Login":
                 select_query = "SELECT * FROM public.tasks"
                 cursor.execute(select_query,)
                 tasks_data = cursor.fetchall()
-                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
+                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
 
                 tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                 tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
