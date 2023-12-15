@@ -249,13 +249,13 @@ if selected_tab == "Login":
                             time.sleep(2)
                             success_mess.empty()
                         st.experimental_rerun()
-                    
-                    if user_type == 'Agency':
-                        available_tasks = tasks_df.loc[(tasks_df["Agency_input_task"] == 'confirm') & (tasks_df["Customer_input_task"] == 'confirm'), "Task"]
-                    elif user_type == 'Customer':
-                        available_tasks = tasks_df.loc[(tasks_df["Agency_input_task"] == 'confirm') & (tasks_df["Customer_input_task"] == 'confirm'), "Task"]
 
-                    selected_task = st.selectbox("Vyberte task", available_tasks)
+                    if user_type == 'Agency':
+                        available_tasks_2 = tasks_df.loc[tasks_df["Agency_input_task"] == 'confirm', "Task"]
+                    elif user_type == 'Customer':
+                        available_tasks_2 = tasks_df.loc[tasks_df["Customer_input_task"] == 'confirm', "Task"]
+
+                    selected_task = st.selectbox("Vyberte task", available_tasks_2)
 
                     if st.form_submit_button("Vrátit Confirmation"):
                         if user_type == 'Agency':
