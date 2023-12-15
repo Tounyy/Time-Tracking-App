@@ -302,9 +302,7 @@ if selected_tab == "Login":
                             warning_mess.empty()
 
                     if st.form_submit_button("Zobrazit tabulku"):
-                        tasks_df.drop(columns=['Tracking_time_tasks'], inplace=True)
-                        tasks_df.drop(columns=['Start_time_of_tracking'], inplace=True)
-                        tasks_df.drop(columns=['Stop_time_of_tracking'], inplace=True)
+                        tasks_df.drop(columns=['Tracking_time_tasks', 'Start_time_of_tracking', 'Stop_time_of_tracking', 'Customer_input_task', 'Agency_input_task'], inplace=True)
                         admin_tasks_df_1 = tasks_df[tasks_df['User'] == username]
                         admin_tasks_df_1.drop(columns=['User'], inplace=True)
                         st.dataframe(admin_tasks_df_1, hide_index=True, use_container_width=True)
@@ -334,9 +332,13 @@ if selected_tab == "Login":
                 tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                 tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
 
-                admin_tasks_df = tasks_df[tasks_df['User'] == username]
-                df = st.dataframe(admin_tasks_df, use_container_width=True, hide_index=True)
-                csv = admin_tasks_df.to_csv(index=False) 
+                if user_type == 'Agency':
+                    df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
+                elif user_type == 'Customer':
+                    tasks_df.drop(columns=['Tracking_time_tasks', 'Start_time_of_tracking', 'Stop_time_of_tracking'], inplace=True)
+                    df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
+
+                csv = tasks_df.to_csv(index=False) 
 
                 st.download_button(
                     label="Stáhnout data jako CSV",
@@ -352,12 +354,13 @@ if selected_tab == "Login":
                 select_querys = "SELECT * FROM public.tasks;"
                 cursor.execute(select_querys)
                 tasks_data_2 = cursor.fetchall()
-                column_names_2 = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
+                column_names_2 = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
                 tasks_df_1 = pd.DataFrame(tasks_data_2, columns=column_names_2)
                 tasks_df_2 = tasks_df_1[tasks_df_1["Tracking_time_tasks"].isna()]
-                admin_tasks_df_1 = tasks_df_2[tasks_df_2['User'] == username]
 
-                selected_task = st.selectbox("Vyberte task", admin_tasks_df_1["Task"])
+                tasks_df_2 = tasks_df_1.loc[(tasks_df_1["Customer_input_task"] == 'confirm') & (tasks_df_1["Agency_input_task"] == 'confirm') & tasks_df_1["Tracking_time_tasks"].isna()]
+
+                selected_task = st.selectbox("Vyberte task", tasks_df_2["Task"])
                 start_button = st.button('Start')
                 stop_button = st.button('Stop')
 
@@ -452,7 +455,7 @@ if selected_tab == "Login":
                 select_query = "SELECT * FROM public.tasks"
                 cursor.execute(select_query,)
                 tasks_data = cursor.fetchall()
-                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
+                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
 
                 tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                 tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
