@@ -57,11 +57,11 @@ if selected_tab == "Login":
 
         if username == 'admin':
             with st.form("table_user_form", clear_on_submit=True):
-                st.title("Zobrazit a smazat tabulku všech uživatelů")
+                st.write("Zobrazit a smazat tabulku všech uživatelů")
                 select_query = "SELECT * FROM public.tasks"
                 cursor.execute(select_query,)
                 tasks_data = cursor.fetchall()
-                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
+                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
 
                 tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                 tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
@@ -120,7 +120,7 @@ if selected_tab == "Login":
                 select_query = "SELECT * FROM public.tasks"
                 cursor.execute(select_query)
                 user_data = cursor.fetchall()
-                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User"]
+                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
 
                 tasks_df = pd.DataFrame(tasks_data, columns=column_names)
                 tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
@@ -173,11 +173,11 @@ if selected_tab == "Login":
                         warning_mess.empty()
 
         elif user_type == 'Agency' or user_type == 'Customer':
-            tab1, tab2 = st.tabs(["Přidat task", "Zobrazit tabulku s časem"])
+            tab1, tab2, tab3, tab4 = st.tabs(["Přidat task", "Confirmation task", "Smazat task", "Zobrazit tabulku s časem"])
 
             with tab1:
                 with st.form("Add_task_form", clear_on_submit=True):
-                    st.title("Přidat task")
+                    st.subheader("Přidat task")
                     task_name = st.text_input("Název tasku")
                     Money_MD = st.number_input("Zadej částku peněz", min_value=1)
 
@@ -216,8 +216,9 @@ if selected_tab == "Login":
                                 time.sleep(1)
                                 success_mess.empty()
 
+            with tab2:
                 with st.form("Confirm_form", clear_on_submit=True):
-                    st.title("Confirmation, aby mohl worker pracovat")
+                    st.subheader("Confirmation, aby mohl worker pracovat")
 
                     select_query = "SELECT * FROM public.tasks"
                     cursor.execute(select_query,)
@@ -275,8 +276,9 @@ if selected_tab == "Login":
 
                         st.experimental_rerun()
 
+            with tab3:
                 with st.form("Delete_task_form", clear_on_submit=True):
-                    st.title("Smazat task a zobrazit tabulku")
+                    st.subheader("Smazat task a zobrazit tabulku")
 
                     select_query = "SELECT * FROM public.tasks"
                     cursor.execute(select_query,)
@@ -323,30 +325,27 @@ if selected_tab == "Login":
                             warning_message.empty()
                             st.experimental_rerun()
 
-            with tab2:
-                select_query = "SELECT * FROM public.tasks"
-                cursor.execute(select_query,)
-                tasks_data = cursor.fetchall()
-                column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
+            with tab4:
+                with st.form("Table_form", clear_on_submit=True):
+                    st.subheader("Tabulka")
 
-                tasks_df = pd.DataFrame(tasks_data, columns=column_names)
-                tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
+                    select_query = "SELECT * FROM public.tasks"
+                    cursor.execute(select_query,)
+                    tasks_data = cursor.fetchall()
+                    column_names = ["ID", "Task", "Tracking_time_tasks", "Start_time_of_tracking", "Stop_time_of_tracking", "User", "MD", "Currency", "Customer_input_task", "Agency_input_task", "User_type_input_task"]
 
-                if user_type == 'Agency':
-                    df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
-                elif user_type == 'Customer':
-                    tasks_df.drop(columns=['Tracking_time_tasks', 'Start_time_of_tracking', 'Stop_time_of_tracking'], inplace=True)
-                    df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
+                    tasks_df = pd.DataFrame(tasks_data, columns=column_names)
+                    tasks_df['Tracking_time_tasks'] = tasks_df['Tracking_time_tasks'].apply(lambda x: str(x).split()[-1])
 
-                csv = tasks_df.to_csv(index=False) 
+                    if user_type == 'Agency':
+                        df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
+                    elif user_type == 'Customer':
+                        tasks_df.drop(columns=['Tracking_time_tasks', 'Start_time_of_tracking', 'Stop_time_of_tracking'], inplace=True)
+                        df = st.dataframe(tasks_df, use_container_width=True, hide_index=True)
 
-                st.download_button(
-                    label="Stáhnout data jako CSV",
-                    data=csv.encode('utf-8'),
-                    file_name='large_df.csv',
-                    mime='text/csv',
-                )
-        
+                    if st.form_submit_button("Smazat celou tabulku"):
+                        st.write("Hello")
+            
         else:
             tab1, tab2  = st.tabs(["Sledování časových úkolů", "Zobrazit tabulku s časem"])
 
@@ -472,7 +471,6 @@ if selected_tab == "Login":
                 )
 
         authenticator.logout('Logout', 'main', key='unique_key')
-        st.write(f"Username: {username}")
 
         select_query = "SELECT * FROM public.\"user\""
         cursor.execute(select_query)
@@ -483,7 +481,34 @@ if selected_tab == "Login":
 
         if (user_df["Username_lower"] == username.lower()).any():
             user_type = user_df.loc[user_df["Username_lower"] == username.lower(), "Type_User"].values[0]
-            st.write(f"Type user: {user_type}")
+            st.markdown(
+                f"""
+                <style>
+                .footer {{
+                    background: #111;
+                    height: 10%;
+                    width: 100%;
+                    font-family: 'Poppins', sans-serif;
+                    padding-top: 4px;
+                    color: #fff;
+                    text-align: left;                    
+                    margin-top: auto;
+                }}
+                .footer p {{
+                    font-weight: 400;
+                    text-transform: capitalize;
+                    margin: 1px 0;
+                    font-size: 13px;
+                }}
+                </style>
+                <div class="footer">
+                    <p>Username: {username}</p>
+                    <p>Type user: {user_type}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )    
+
         elif username == "admin":
             st.write(f"Type user: admin")
         else:
